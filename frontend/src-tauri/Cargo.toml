@@ -1,5 +1,5 @@
 [package]
-name = "meetily-frontend-app"
+name = "ricardo-piola"
 version = "0.0.4"
 description = "A Tauri App for meeting minutes"
 authors = ["Sujith S"]
