@@ -1,5 +1,6 @@
 import { markdownToBlocks } from '@tryfabric/martian';
 import { Summary } from '@/types';
+import { fetch } from '@tauri-apps/plugin-http'
 
 interface NotionConfig {
   apiKey: string;
@@ -33,9 +34,6 @@ export async function exportMeetingToNotion(
         contentInBlocks.splice(0, 100);
         console.log("there are >100 blocks and I haven't yet made the logic for this");
     }
-
-    // Use Tauri's HTTP client
-    const { fetch } = await import('@tauri-apps/plugin-http');
 
     const response = await fetch(`https://api.notion.com/v1/blocks/${notionConfig.pageId}/children`, {
       method: 'PATCH',
