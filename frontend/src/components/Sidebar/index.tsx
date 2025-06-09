@@ -81,16 +81,6 @@ const Sidebar: React.FC = () => {
         >
           <Calendar className="w-5 h-5 text-gray-600" />
         </button>
-        <button
-          onClick={() => {
-            if (isCollapsed) toggleCollapse();
-            toggleFolder('notes');
-          }}
-          className="p-2 hover:bg-gray-100 rounded-md transition-colors"
-          title="Notes"
-        >
-          <StickyNote className="w-5 h-5 text-gray-600" />
-        </button>
       </div>
     );
   };
