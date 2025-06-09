@@ -5,6 +5,7 @@ import { Summary, Block } from '@/types';
 import { Section } from './Section';
 import { EditableTitle } from '../EditableTitle';
 import { ExclamationTriangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
+import { exportMeetingToNotion } from '@/utils/notionExport';
 
 interface Props {
   summary: Summary | null;
@@ -20,6 +21,9 @@ interface Props {
 }
 
 export const AISummary = ({ summary, status, error, onSummaryChange, onRegenerateSummary, meeting }: Props) => {
+  const [showNotionModal, setShowNotionModal] = useState(false);
+  const [notionApiKey, setNotionApiKey] = useState('');
+  const [notionPageId, setNotionPageId] = useState('');
   const generateUniqueId = (sectionKey: string) => {
     return `${sectionKey}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
@@ -567,6 +571,40 @@ export const AISummary = ({ summary, status, error, onSummaryChange, onRegenerat
     URL.revokeObjectURL(url);
   };
 
+  const handleNotionExport = () => {
+    setShowNotionModal(true);
+  };
+
+  const handleNotionSubmit = async () => {
+    try {
+      if (!notionApiKey || !notionPageId) {
+        return;
+      }
+
+      const meetingData = {
+        id: meeting?.id || 'unknown',
+        title: meeting?.title || 'Untitled Meeting',
+        date: meeting?.created_at || new Date().toISOString(),
+        transcripts: [], // We're only exporting the summary
+        summary: currentSummary
+      };
+
+      const notionUrl = await exportMeetingToNotion(
+        meetingData,
+        { apiKey: notionApiKey, pageId: notionPageId },
+      );
+
+      setShowNotionModal(false);
+      setNotionApiKey('');
+      setNotionPageId('');
+      
+      // Use a simple success message that works in Tauri
+      console.log(`Successfully exported to Notion! View at: ${notionUrl}`);
+    } catch (error) {
+      console.error('Failed to export to Notion:', error);
+    }
+  };
+
   const renderErrorState = () => (
     <div className="w-full p-4 bg-red-50 border border-red-200 rounded-lg">
       <div className="flex items-center mb-2">
@@ -736,13 +774,13 @@ export const AISummary = ({ summary, status, error, onSummaryChange, onRegenerat
             <span>📋</span>
             <span>Copy as Markdown</span>
           </button>
-          {/* <button
-            onClick={handleExport}
-            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md flex items-center space-x-1"
+          <button
+            onClick={handleNotionExport}
+            className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 rounded-md flex items-center space-x-1"
           >
             <span>📝</span>
-            <span>Export as Markdown</span>
-          </button> */}
+            <span>Export to Notion</span>
+          </button>
           <button
             onClick={onRegenerateSummary}
             className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md flex items-center space-x-1"
@@ -775,6 +813,74 @@ export const AISummary = ({ summary, status, error, onSummaryChange, onRegenerat
           onBlockNavigate={(blockId, direction) => handleBlockNavigate(blockId, direction)}
         />
       ))}
+
+      {/* Notion Export Modal */}
+      {showNotionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Export to Notion</h3>
+              <button
+                onClick={() => setShowNotionModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notion API Key
+                </label>
+                <input
+                  type="password"
+                  value={notionApiKey}
+                  onChange={(e) => setNotionApiKey(e.target.value)}
+                  placeholder="Enter your Notion API key"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notion Page ID
+                </label>
+                <input
+                  type="text"
+                  value={notionPageId}
+                  onChange={(e) => setNotionPageId(e.target.value)}
+                  placeholder="Enter your Notion page ID"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="text-sm text-gray-600">
+                <p>Get your API key from: <a href="https://developers.notion.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">developers.notion.com</a></p>
+                <p>Page ID is the last part of your Notion page URL</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowNotionModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleNotionSubmit}
+                disabled={!notionApiKey || !notionPageId}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Export
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
